@@ -33,7 +33,7 @@ b2_rpy_prediction= B2_rpy_prediction(configfile)
 ###################################################
 
 print "Start loading previous forecasts"
-b2_rpy_prediction.load_prev_forecasts(ForecastFolderArima)
+b2_rpy_prediction.load_prev_forecasts()
 print "Finished loading previous forecasts"
 
 ###################################################
@@ -54,8 +54,9 @@ while True:
     h = msg_csv[3]
     l = msg_csv[4]
     c = msg_csv[5]
+    model = msg_csv[6]
 
-    prev_fcast = b2_rpy_prediction.get_prev_forecast(dt,sym)
+    prev_fcast = b2_rpy_prediction.get_prev_forecast(dt,sym,model)
     if prev_fcast is None:
         sPrevFcast = "-1.0"
     else:
