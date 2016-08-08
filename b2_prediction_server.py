@@ -45,6 +45,7 @@ socket.bind("tcp://*:%s" % ServerPort)
 
 while True:
     message = socket.recv()
+    # print "message received: %s" % (message)
     msg_csv = message.split(",")
     if len(msg_csv) < 6:
         continue
@@ -54,7 +55,8 @@ while True:
     h = msg_csv[3]
     l = msg_csv[4]
     c = msg_csv[5]
-    model = msg_csv[6]
+    v = msg_csv[6]
+    model = int(msg_csv[7].rstrip('\0'))
 
     prev_fcast = b2_rpy_prediction.get_prev_forecast(dt,sym,model)
     if prev_fcast is None:

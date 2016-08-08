@@ -55,6 +55,7 @@ class B2_rpy_prediction(object):
             # FIXME: right now there will be no result if it wasn't already in the file
             ###################################################
             with open(self.ForecastFolderArima+'/'+symfile,'r') as f:
+                print f
                 for line in f:
                     csv = line.strip().split(",")
                     if len(csv) < 6:
@@ -102,6 +103,7 @@ class B2_rpy_prediction(object):
     def get_prev_forecast(self, dt, sym, model):
         agg_fcast = 0.0
 
+        # print "model = %s" % (model)
         if model == B2_rpy_prediction.ARIMA:
             if dt not in self.prev_forecasts_arima[sym]:
                 return None
