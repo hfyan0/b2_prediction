@@ -281,8 +281,9 @@ class B2_rpy_prediction(object):
 
         ###################################################
         if model == B2_rpy_prediction.ARIMA:
-            R.r('r_refit = Arima(r_ls_ln_avgpx, model=r_fit)')
-            R.r('fc = forecast(r_refit, h=1)')
+            # R.r('r_refit = Arima(r_ls_ln_avgpx, model=r_fit)')
+            # R.r('fc = forecast(r_refit, h=1)')
+            R.r('fc = forecast(r_fit, h=1)')
             py_fc = R.r('fc$mean')
             fc_pxreturn = math.exp(py_fc[0] - py_ls_ln_avgpx[-1]) -1.0
             fc_pxreturn_1d = fc_pxreturn / float(barintvl)
