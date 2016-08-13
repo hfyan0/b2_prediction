@@ -18,17 +18,25 @@ class B2_rpy_prediction(object):
         config = ConfigParser.ConfigParser()
         config.read(configfile)
 
-        self.PriceFolder          =     config.get("Prediction", "PriceFolder")
-        self.TrainingPeriodArima  = int(config.get("ARIMA"     , "TrainingPeriod"))
-        self.TrainingPeriodTaylor = int(config.get("Taylor"    , "TrainingPeriod"))
+        self.PriceFolder                =     config.get("Prediction", "PriceFolder")
+        self.TrainingPeriodArima        = int(config.get("ARIMA"     , "TrainingPeriod"))
+        self.TrainingPeriodTaylor       = int(config.get("Taylor"    , "TrainingPeriod"))
         
-        self.MaxBarIntervalArima  = int(config.get("ARIMA", "MaxBarInterval"))
-        self.CoefFolderArima      =     config.get("ARIMA", "CoefFolder"    )
-        self.ForecastFolderArima  =     config.get("ARIMA", "ForecastFolder")
+        self.MaxBarIntervalArima        = int(config.get("ARIMA", "MaxBarInterval"      ))
+        self.CoefFolderArima            =     config.get("ARIMA", "CoefFolder"          )
+        self.ForecastFolderArima        =     config.get("ARIMA", "ForecastFolder"      )
+        self.PredictOnLatestDataArima   =     config.get("ARIMA", "PredictOnLatestData" )
 
-        self.MaxBarIntervalTaylor = int(config.get("Taylor", "MaxBarInterval"))
-        self.CoefFolderTaylor     =     config.get("Taylor", "CoefFolder"    )
-        self.ForecastFolderTaylor =     config.get("Taylor", "ForecastFolder")
+        self.MaxBarIntervalTaylor       = int(config.get("Taylor", "MaxBarInterval"     ))
+        self.CoefFolderTaylor           =     config.get("Taylor", "CoefFolder"         )
+        self.ForecastFolderTaylor       =     config.get("Taylor", "ForecastFolder"     )
+        self.PredictOnLatestDataTaylor  =     config.get("Taylor", "PredictOnLatestData")
+
+        if self.PredictOnLatestDataArima in ['True', 'true', 'Y' 'y', 'Yes', 'yes']:
+            self.PredictOnLatestDataArima = True
+
+        if self.PredictOnLatestDataTaylor in ['True', 'true', 'Y' 'y', 'Yes', 'yes']:
+            self.PredictOnLatestDataTaylor = True
 
         ###################################################
         self.prev_forecasts_arima = {}
@@ -151,19 +159,19 @@ class B2_rpy_prediction(object):
         py_ls_date_tmp = py_ls_date_full[barintvlshift:-how_many_days_bk]
         py_ls_ln_avgpx_tmp = py_ls_ln_avgpx_full[barintvlshift:-how_many_days_bk]
 
-        py_ls_date = []
-        py_ls_ln_avgpx = []
+        py_ls_date_w_barintvl = []
+        py_ls_ln_avgpx_w_barintvl = []
 
         iCnt=0
         for d in py_ls_date_tmp:
             if iCnt % barintvl == 0:
-                py_ls_date.append(d)
+                py_ls_date_w_barintvl.append(d)
             iCnt += 1
 
         iCnt=0
         for p in py_ls_ln_avgpx_tmp:
             if iCnt % barintvl == 0:
-                py_ls_ln_avgpx.append(p)
+                py_ls_ln_avgpx_w_barintvl.append(p)
             iCnt += 1
 
         if model == B2_rpy_prediction.ARIMA:
@@ -171,19 +179,20 @@ class B2_rpy_prediction(object):
         elif model == self.TAYLOR:
             trainingPeriod = self.TrainingPeriodTaylor
 
-        if len(py_ls_ln_avgpx) < trainingPeriod:
+        if len(py_ls_ln_avgpx_w_barintvl) < trainingPeriod:
             return (None,None)
 
-        py_ls_date = py_ls_date[-trainingPeriod:]
-        py_ls_ln_avgpx = py_ls_ln_avgpx[-trainingPeriod:]
+        py_ls_date_w_barintvl = py_ls_date_w_barintvl[-trainingPeriod:]
+        py_ls_ln_avgpx_w_barintvl = py_ls_ln_avgpx_w_barintvl[-trainingPeriod:]
 
         # print "%s how_many_days_bk %s barintvl %s barintvlshift %s" % (symbol,how_many_days_bk,barintvl,barintvlshift)
-        # print py_ls_date
-        # print py_ls_ln_avgpx
+        # print py_ls_date_w_barintvl
+        # print py_ls_ln_avgpx_w_barintvl
 
-        R.r.assign('r_x',py_ls_ln_avgpx)
+        R.r.assign('r_x',py_ls_ln_avgpx_w_barintvl)
         R.r('r_x = sapply(r_x, as.numeric)')
 
+        ###################################################
         if model == B2_rpy_prediction.ARIMA:
             # py_fit = R.r('r_fit = arima(x=r_x, order=c(3,1,3))')
             py_fit = R.r('r_fit = tryCatch({arima(x=r_x, order=c(2,1,2))}, error=function(e){} )')
@@ -196,42 +205,42 @@ class B2_rpy_prediction(object):
             ###################################################
             # construct the Taylor terms
             ###################################################
-            py_ls_rev_avgpx = list(reversed(map(lambda x: math.exp(x), py_ls_ln_avgpx)))
-            py_ls_rev_date = list(reversed(py_ls_date))
+            py_ls_rev_avgpx_w_barintvl = list(reversed(map(lambda x: math.exp(x), py_ls_ln_avgpx_w_barintvl)))
+            py_ls_rev_date_w_barintvl = list(reversed(py_ls_date_w_barintvl))
 
             py_ls_rev_avgpx_d = []
             py_ls_rev_avgpx_dd = []
             py_ls_rev_date_d = []
             py_ls_rev_date_dd = []
 
-            if len(py_ls_rev_avgpx) <= 2:
+            if len(py_ls_rev_avgpx_w_barintvl) <= 2:
                 return (None,None)
 
-            for i in range(len(py_ls_rev_avgpx)-1):
-                py_ls_rev_avgpx_d.append(py_ls_rev_avgpx[i]-py_ls_rev_avgpx[i+1])
-                py_ls_rev_date_d.append(py_ls_rev_date[i]+"-"+py_ls_rev_date[i+1])
+            for i in range(len(py_ls_rev_avgpx_w_barintvl)-1):
+                py_ls_rev_avgpx_d.append(py_ls_rev_avgpx_w_barintvl[i]-py_ls_rev_avgpx_w_barintvl[i+1])
+                py_ls_rev_date_d.append(py_ls_rev_date_w_barintvl[i]+"-"+py_ls_rev_date_w_barintvl[i+1])
             for i in range(len(py_ls_rev_avgpx_d)-1):
                 py_ls_rev_avgpx_dd.append(py_ls_rev_avgpx_d[i]-py_ls_rev_avgpx_d[i+1])
                 py_ls_rev_date_dd.append(py_ls_rev_date_d[i]+"-"+py_ls_rev_date_d[i+1])
 
             py_ls_rev_avgpx_d_next = py_ls_rev_avgpx_d[:-3]
-            py_ls_rev_avgpx = py_ls_rev_avgpx[1:-3]
+            py_ls_rev_avgpx_w_barintvl = py_ls_rev_avgpx_w_barintvl[1:-3]
             py_ls_rev_avgpx_d = py_ls_rev_avgpx_d[1:-2]
             py_ls_rev_avgpx_dd = py_ls_rev_avgpx_dd[1:-1]
 
             py_ls_rev_date_d_next = py_ls_rev_date_d[:-3]
-            py_ls_rev_date = py_ls_rev_date[1:-3]
+            py_ls_rev_date_w_barintvl = py_ls_rev_date_w_barintvl[1:-3]
             py_ls_rev_date_d = py_ls_rev_date_d[1:-2]
             py_ls_rev_date_dd = py_ls_rev_date_dd[1:-1]
 
             # print ""
             # print "py_ls_rev_date_d_next %s " % py_ls_rev_date_d_next
-            # print "py_ls_rev_date        %s " % py_ls_rev_date
+            # print "py_ls_rev_date_w_barintvl        %s " % py_ls_rev_date_w_barintvl
             # print "py_ls_rev_date_d      %s " % py_ls_rev_date_d
             # print "py_ls_rev_date_dd     %s " % py_ls_rev_date_dd
 
             R.r.assign('r_rev_avgpx_d_next',py_ls_rev_avgpx_d_next)
-            R.r.assign('r_rev_avgpx',py_ls_rev_avgpx)
+            R.r.assign('r_rev_avgpx',py_ls_rev_avgpx_w_barintvl)
             R.r.assign('r_rev_avgpx_d',py_ls_rev_avgpx_d)
             R.r.assign('r_rev_avgpx_dd',py_ls_rev_avgpx_dd)
             R.r('r_rev_avgpx_d_next = sapply(r_rev_avgpx_d_next, as.numeric)')
@@ -246,53 +255,63 @@ class B2_rpy_prediction(object):
 
             py_fit_coef = R.r('coef(r_fit)')
 
+
+
         ###################################################
         # forecast from the latest bar, not the shifted bars
         ###################################################
-        py_ls_date_tmp = py_ls_date_full[:-how_many_days_bk]
-        py_ls_ln_avgpx_tmp = py_ls_ln_avgpx_full[:-how_many_days_bk]
+        if self.PredictOnLatestDataArima or self.PredictOnLatestDataTaylor:
+            py_ls_date_tmp = py_ls_date_full[:-how_many_days_bk]
+            py_ls_ln_avgpx_tmp = py_ls_ln_avgpx_full[:-how_many_days_bk]
 
-        py_ls_date = []
-        py_ls_ln_avgpx = []
+            py_ls_date_w_barintvl = []
+            py_ls_ln_avgpx_w_barintvl = []
 
-        iCnt=0
-        for d in reversed(py_ls_date_tmp):
-            if iCnt % barintvl == 0:
-                py_ls_date.append(d)
-            iCnt += 1
+            iCnt=0
+            for d in reversed(py_ls_date_tmp):
+                if iCnt % barintvl == 0:
+                    py_ls_date_w_barintvl.append(d)
+                iCnt += 1
 
-        iCnt=0
-        for p in reversed(py_ls_ln_avgpx_tmp):
-            if iCnt % barintvl == 0:
-                py_ls_ln_avgpx.append(p)
-            iCnt += 1
+            iCnt=0
+            for p in reversed(py_ls_ln_avgpx_tmp):
+                if iCnt % barintvl == 0:
+                    py_ls_ln_avgpx_w_barintvl.append(p)
+                iCnt += 1
 
-        if len(py_ls_ln_avgpx) < trainingPeriod:
-            return (None,None)
+            if len(py_ls_ln_avgpx_w_barintvl) < trainingPeriod:
+                return (None,None)
 
-        py_ls_date = (list(reversed(py_ls_date)))[-trainingPeriod:]
-        py_ls_ln_avgpx = (list(reversed(py_ls_ln_avgpx)))[-trainingPeriod:]
+            py_ls_date_w_barintvl = (list(py_ls_date_w_barintvl))[:trainingPeriod]
+            py_ls_ln_avgpx_w_barintvl = (list(py_ls_ln_avgpx_w_barintvl))[:trainingPeriod]
 
-        # print "%s %s %s %s %s" % (py_ls_date[-1],py_ls_date,how_many_days_bk,barintvl,barintvlshift)
+            # print "%s %s %s %s %s" % (py_ls_date_w_barintvl[-1],py_ls_date_w_barintvl,how_many_days_bk,barintvl,barintvlshift)
 
-        ###################################################
-        R.r.assign('r_ls_ln_avgpx',py_ls_ln_avgpx)
-        R.r('r_ls_ln_avgpx = sapply(r_ls_ln_avgpx, as.numeric)')
+            ###################################################
+            R.r.assign('r_ls_ln_avgpx',py_ls_ln_avgpx_w_barintvl)
+            R.r('r_ls_ln_avgpx = sapply(r_ls_ln_avgpx, as.numeric)')
 
-        ###################################################
         if model == B2_rpy_prediction.ARIMA:
-            # R.r('r_refit = Arima(r_ls_ln_avgpx, model=r_fit)')
-            # R.r('fc = forecast(r_refit, h=1)')
-            R.r('fc = forecast(r_fit, h=1)')
+            if self.PredictOnLatestDataArima:
+                R.r('r_refit = Arima(r_ls_ln_avgpx, model=r_fit)')
+                R.r('fc = forecast(r_refit, h=1)')
+            else:
+                R.r('fc = forecast(r_fit, h=1)')
+
             py_fc = R.r('fc$mean')
-            fc_pxreturn = math.exp(py_fc[0] - py_ls_ln_avgpx[-1]) -1.0
+            fc_pxreturn = math.exp(py_fc[0] - py_ls_ln_avgpx_w_barintvl[-1]) -1.0
             fc_pxreturn_1d = fc_pxreturn / float(barintvl)
 
             return (py_fit_coef, fc_pxreturn_1d)
 
         elif model == B2_rpy_prediction.TAYLOR:
-            py_d1 = math.exp(py_ls_ln_avgpx[-1])-math.exp(py_ls_ln_avgpx[-2])
-            py_d2 = math.exp(py_ls_ln_avgpx[-1])-2*math.exp(py_ls_ln_avgpx[-2])+math.exp(py_ls_ln_avgpx[-3])
+            if self.PredictOnLatestDataTaylor:
+                py_d1 = math.exp(py_ls_ln_avgpx_w_barintvl[-1])-math.exp(py_ls_ln_avgpx_w_barintvl[-2])
+                py_d2 = math.exp(py_ls_ln_avgpx_w_barintvl[-1])-2*math.exp(py_ls_ln_avgpx_w_barintvl[-2])+math.exp(py_ls_ln_avgpx_w_barintvl[-3])
+            else:
+                py_ls_rev_avgpx_w_barintvl = list(reversed(map(lambda x: math.exp(x), py_ls_ln_avgpx_w_barintvl)))
+                py_d1 = py_ls_rev_avgpx_w_barintvl[0]-py_ls_rev_avgpx_w_barintvl[1]
+                py_d2 = py_ls_rev_avgpx_w_barintvl[0]-2*py_ls_rev_avgpx_w_barintvl[1]+py_ls_rev_avgpx_w_barintvl[2]
 
             R.r.assign('r_d1',py_d1)
             R.r('r_d1 = sapply(r_d1, as.numeric)')
@@ -300,6 +319,7 @@ class B2_rpy_prediction(object):
             R.r('r_d2 = sapply(r_d2, as.numeric)')
 
             py_pred = R.r('pred = predict(r_fit, data.frame(r_rev_avgpx_d = c(r_d1), r_rev_avgpx_dd = c(r_d2)))')
-            fc_pxreturn_1d = py_pred[0] / math.exp(py_ls_ln_avgpx[-1]) / float(barintvl)
+
+            fc_pxreturn_1d = py_pred[0] / math.exp(py_ls_ln_avgpx_w_barintvl[-1]) / float(barintvl)
 
             return (py_fit_coef, fc_pxreturn_1d)
