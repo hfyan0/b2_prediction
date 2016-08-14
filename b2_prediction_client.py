@@ -28,6 +28,6 @@ socket = context.socket(zmq.REQ)
 socket.connect("tcp://127.0.0.1:%s" % ServerPort)
 
 while True:
-    socket.send('2016-06-02,AGG,1,2,3,4')
+    socket.send('2016-06-02,AGG,1,3,1,2,5,1')
     print socket.recv()
     time.sleep(1)

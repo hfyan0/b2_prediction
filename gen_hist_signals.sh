@@ -19,4 +19,3 @@ cd $SYMBOLS_FOLDER
 ls | time parallel -j+0 --progress --eta python $GEN_HIST_SGNL_WITH_RPY $CONFIG_HIST
 # python $GEN_HIST_SGNL_WITH_RPY $CONFIG_HIST AGG
 date
-

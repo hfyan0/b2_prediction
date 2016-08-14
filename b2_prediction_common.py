@@ -6,6 +6,7 @@ import rpy2.robjects as R
 import math
 from os import listdir
 from os.path import isfile, join
+import gzip
 
 class B2_rpy_prediction(object):
     ARIMA  = 1
@@ -15,28 +16,20 @@ class B2_rpy_prediction(object):
         R.r('library(tseries)')
         R.r('library(forecast)')
 
-        config = ConfigParser.ConfigParser()
-        config.read(configfile)
+        self.config = ConfigParser.ConfigParser()
+        self.config.read(configfile)
 
-        self.PriceFolder                =     config.get("Prediction", "PriceFolder")
-        self.TrainingPeriodArima        = int(config.get("ARIMA"     , "TrainingPeriod"))
-        self.TrainingPeriodTaylor       = int(config.get("Taylor"    , "TrainingPeriod"))
+        self.PriceFolder            =     self.config.get("Prediction", "PriceFolder")
+        self.TrainingPeriodArima    = int(self.config.get("ARIMA"     , "TrainingPeriod"))
+        self.TrainingPeriodTaylor   = int(self.config.get("Taylor"    , "TrainingPeriod"))
         
-        self.MaxBarIntervalArima        = int(config.get("ARIMA", "MaxBarInterval"      ))
-        self.CoefFolderArima            =     config.get("ARIMA", "CoefFolder"          )
-        self.ForecastFolderArima        =     config.get("ARIMA", "ForecastFolder"      )
-        self.PredictOnLatestDataArima   =     config.get("ARIMA", "PredictOnLatestData" )
+        self.MaxBarIntervalArima    = int(self.config.get("ARIMA", "MaxBarInterval"      ))
+        self.CoefFolderArima        =     self.config.get("ARIMA", "CoefFolder"          )
+        self.ForecastFolderArima    =     self.config.get("ARIMA", "ForecastFolder"      )
 
-        self.MaxBarIntervalTaylor       = int(config.get("Taylor", "MaxBarInterval"     ))
-        self.CoefFolderTaylor           =     config.get("Taylor", "CoefFolder"         )
-        self.ForecastFolderTaylor       =     config.get("Taylor", "ForecastFolder"     )
-        self.PredictOnLatestDataTaylor  =     config.get("Taylor", "PredictOnLatestData")
-
-        if self.PredictOnLatestDataArima in ['True', 'true', 'Y' 'y', 'Yes', 'yes']:
-            self.PredictOnLatestDataArima = True
-
-        if self.PredictOnLatestDataTaylor in ['True', 'true', 'Y' 'y', 'Yes', 'yes']:
-            self.PredictOnLatestDataTaylor = True
+        self.MaxBarIntervalTaylor   = int(self.config.get("Taylor", "MaxBarInterval"     ))
+        self.CoefFolderTaylor       =     self.config.get("Taylor", "CoefFolder"         )
+        self.ForecastFolderTaylor   =     self.config.get("Taylor", "ForecastFolder"     )
 
         ###################################################
         self.prev_forecasts_arima = {}
@@ -62,7 +55,7 @@ class B2_rpy_prediction(object):
             ###################################################
             # FIXME: right now there will be no result if it wasn't already in the file
             ###################################################
-            with open(self.ForecastFolderArima+'/'+symfile,'r') as f:
+            with gzip.open(self.ForecastFolderArima+'/'+symfile,'r') as f:
                 print f
                 for line in f:
                     csv = line.strip().split(",")
@@ -89,7 +82,7 @@ class B2_rpy_prediction(object):
             ###################################################
             # FIXME: right now there will be no result if it wasn't already in the file
             ###################################################
-            with open(self.ForecastFolderTaylor+'/'+symfile,'r') as f:
+            with gzip.open(self.ForecastFolderTaylor+'/'+symfile,'r') as f:
                 for line in f:
                     csv = line.strip().split(",")
                     if len(csv) < 6:
@@ -155,6 +148,15 @@ class B2_rpy_prediction(object):
     # an important function that calibrates our models and make forecast
     ###################################################
     def calc_forecast(self, model, py_ls_date_full, py_ls_ln_avgpx_full, how_many_days_bk, barintvl, barintvlshift):
+
+        self.PredictOnLatestDataArima   = self.config.get("ARIMA", "PredictOnLatestData" )
+        self.PredictOnLatestDataTaylor  = self.config.get("Taylor", "PredictOnLatestData")
+
+        if self.PredictOnLatestDataArima in ['True', 'true', 'Y' 'y', 'Yes', 'yes']:
+            self.PredictOnLatestDataArima = True
+
+        if self.PredictOnLatestDataTaylor in ['True', 'true', 'Y' 'y', 'Yes', 'yes']:
+            self.PredictOnLatestDataTaylor = True
 
         py_ls_date_tmp = py_ls_date_full[barintvlshift:-how_many_days_bk]
         py_ls_ln_avgpx_tmp = py_ls_ln_avgpx_full[barintvlshift:-how_many_days_bk]
@@ -282,10 +284,10 @@ class B2_rpy_prediction(object):
             if len(py_ls_ln_avgpx_w_barintvl) < trainingPeriod:
                 return (None,None)
 
-            py_ls_date_w_barintvl = (list(py_ls_date_w_barintvl))[:trainingPeriod]
-            py_ls_ln_avgpx_w_barintvl = (list(py_ls_ln_avgpx_w_barintvl))[:trainingPeriod]
+            py_ls_date_w_barintvl = list(reversed((py_ls_date_w_barintvl)[:trainingPeriod]))
+            py_ls_ln_avgpx_w_barintvl = list(reversed((py_ls_ln_avgpx_w_barintvl)[:trainingPeriod]))
 
-            # print "%s %s %s %s %s" % (py_ls_date_w_barintvl[-1],py_ls_date_w_barintvl,how_many_days_bk,barintvl,barintvlshift)
+            # print "%s %s %s %s %s" % (py_ls_date_w_barintvl[-1],py_ls_date_w_barintvl[-5:],how_many_days_bk,barintvl,barintvlshift)
 
             ###################################################
             R.r.assign('r_ls_ln_avgpx',py_ls_ln_avgpx_w_barintvl)
