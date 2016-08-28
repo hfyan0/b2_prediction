@@ -101,19 +101,42 @@ class B2_rpy_prediction(object):
 
                     self.prev_forecasts_taylor[sym][dt][barintvl_shift] = fcast
 
+    def add_forecast(self, model, sym, dt, barintvl_shift, fcast):
+
+        if model == B2_rpy_prediction.ARIMA:
+
+            if sym not in self.prev_forecasts_arima:
+                self.prev_forecasts_arima[sym] = {}
+
+            if dt not in self.prev_forecasts_arima[sym]:
+                self.prev_forecasts_arima[sym][dt] = {}
+
+            self.prev_forecasts_arima[sym][dt][barintvl_shift] = fcast
+
+        elif model == B2_rpy_prediction.TAYLOR:
+
+            if sym not in self.prev_forecasts_taylor:
+                self.prev_forecasts_taylor[sym] = {}
+
+            if dt not in self.prev_forecasts_taylor[sym]:
+                self.prev_forecasts_taylor[sym][dt] = {}
+
+            self.prev_forecasts_taylor[sym][dt][barintvl_shift] = fcast
+
+
     def get_prev_forecast(self, dt, sym, model):
         agg_fcast = 0.0
 
         # print "model = %s" % (model)
         if model == B2_rpy_prediction.ARIMA:
-            if dt not in self.prev_forecasts_arima[sym]:
-                return None
             if sym not in self.prev_forecasts_arima:
                 return None
-        elif model == B2_rpy_prediction.TAYLOR:
-            if dt not in self.prev_forecasts_taylor[sym]:
+            if dt not in self.prev_forecasts_arima[sym]:
                 return None
+        elif model == B2_rpy_prediction.TAYLOR:
             if sym not in self.prev_forecasts_taylor:
+                return None
+            if dt not in self.prev_forecasts_taylor[sym]:
                 return None
 
         barintvl_cnt = []
