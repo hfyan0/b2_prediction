@@ -46,11 +46,21 @@ context = zmq.Context()
 socket = context.socket(zmq.REP)
 socket.bind("tcp://*:%s" % ServerPort)
 
+###################################################
+STR_UNDEFINED="-1.0"
 while True:
     message = socket.recv()
     print "message received: %s" % (message)
+    ###################################################
+    # testing
+    ###################################################
+    if "ping" in message or "test" in message:
+        socket.send(STR_UNDEFINED)
+        continue
+    ###################################################
     msg_csv = message.split(",")
     if len(msg_csv) < 6:
+        socket.send(STR_UNDEFINED)
         continue
     dt = datetime.strptime(msg_csv[0],"%Y-%m-%d").date()
     symbol = msg_csv[1]
@@ -63,14 +73,18 @@ while True:
 
     prev_fcast = b2_rpy_prediction.get_prev_forecast(dt,symbol,model)
     if prev_fcast is None:
-        print "Need to calculate prediction real time"
-        sPrevFcast = "-1.0"
+        print "May need to calculate prediction real time"
+        sPrevFcast = STR_UNDEFINED
 
         ###################################################
         # calculate the latest prediction on the fly
         ###################################################
         (py_ls_date_full, py_ls_ln_avgpx_full) = b2_rpy_prediction.get_hist_price_data(symbol)
 
+        if dt <= datetime.strptime(py_ls_date_full[-1],"%Y-%m-%d").date():
+            print "Should not calculate prediction"
+            socket.send(STR_UNDEFINED)
+            continue
         ###################################################
         # append today's OHLC
         ###################################################
@@ -88,6 +102,7 @@ while True:
                 (py_fit_coef, fc_pxreturn_1d) = b2_rpy_prediction.calc_forecast(model, py_ls_date_full, py_ls_ln_avgpx_full, how_many_days_bk, barintvl, barintvlshift)
 
                 if py_fit_coef is None or fc_pxreturn_1d is None:
+                    socket.send(STR_UNDEFINED)
                     continue
 
                 print model, symbol, dt, str(barintvl) + "_" + str(barintvlshift), fc_pxreturn_1d
@@ -100,4 +115,3 @@ while True:
         sPrevFcast = str(prev_fcast)
     print "%s %s %s" % (dt,symbol,sPrevFcast)
     socket.send(sPrevFcast)
-
