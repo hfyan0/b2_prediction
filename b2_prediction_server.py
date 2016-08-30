@@ -73,7 +73,7 @@ while True:
 
     prev_fcast = b2_rpy_prediction.get_prev_forecast(dt,symbol,model)
     if prev_fcast is None:
-        print "May need to calculate prediction real time"
+        print "Forecast for %s on %s is unavailable." % (symbol,dt)
         sPrevFcast = STR_UNDEFINED
 
         ###################################################
@@ -82,7 +82,7 @@ while True:
         (py_ls_date_full, py_ls_ln_avgpx_full) = b2_rpy_prediction.get_hist_price_data(symbol)
 
         if dt <= datetime.strptime(py_ls_date_full[-1],"%Y-%m-%d").date():
-            print "Should not calculate prediction"
+            print "But should not calculate prediction"
             socket.send(STR_UNDEFINED)
             continue
         ###################################################
@@ -102,7 +102,6 @@ while True:
                 (py_fit_coef, fc_pxreturn_1d) = b2_rpy_prediction.calc_forecast(model, py_ls_date_full, py_ls_ln_avgpx_full, how_many_days_bk, barintvl, barintvlshift)
 
                 if py_fit_coef is None or fc_pxreturn_1d is None:
-                    socket.send(STR_UNDEFINED)
                     continue
 
                 print model, symbol, dt, str(barintvl) + "_" + str(barintvlshift), fc_pxreturn_1d
