@@ -93,6 +93,13 @@ while True:
         py_ls_ln_avgpx_full.append(ln_avgpx)
         ###################################################
 
+        ###################################################
+        # for debugging purpose
+        ###################################################
+        print "Symbol: %s Date:  Last few days: %s" % (symbol,",".join(py_ls_date_full[-5:]))
+        print "Symbol: %s Price: Last few days: %s" % (symbol,",".join(map(lambda x: str(x), py_ls_ln_avgpx_full[-5:])))
+        ###################################################
+
         how_many_days_bk = 1
 
         for barintvl in range(1,MaxBarIntervalArima+1):
